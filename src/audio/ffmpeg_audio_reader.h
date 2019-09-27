@@ -158,11 +158,14 @@ inline bool FFmpegAudioReader::Open(const std::string &file_name) {
 
 	m_packet0 = m_packet;
 
-	ret = avformat_open_input(&m_format_ctx, file_name.c_str(), m_input_fmt, &m_input_opts);
+	SetError(file_name.c_str(), ret);
+	ret = avformat_open_input(&m_format_ctx, file_name.c_str(), nullptr, &m_input_opts);
 	if (ret < 0) {
 		SetError("Could not open the input file", ret);
 		return false;
 	}
+
+	m_format_ctx->max_analyze_duration = 5000000000;
 
 	ret = avformat_find_stream_info(m_format_ctx, nullptr);
 	if (ret < 0) {
@@ -285,10 +288,15 @@ inline bool FFmpegAudioReader::Read(const int16_t **data, size_t *size) {
 					return false;
 				}
 			}
+			if(m_format_ctx->streams[m_stream_index]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+			{
+				continue;
+			}
 			m_packet0 = m_packet;
 			if (m_packet.stream_index != m_stream_index) {
 				m_packet.data = nullptr;
 				m_packet.size = 0;
+				continue;
 			} else {
 				m_nb_packets++;
 			}
@@ -298,7 +306,10 @@ inline bool FFmpegAudioReader::Read(const int16_t **data, size_t *size) {
 		if (ret < 0) {
 			if (m_decode_error) {
 				SetError("Error decoding audio frame", m_decode_error);
-				return false;
+			m_decode_error = ret;
+			m_packet.data = nullptr;
+			m_packet.size = 0;
+			continue;
 			}
 			m_decode_error = ret;
 			m_packet.data = nullptr;
