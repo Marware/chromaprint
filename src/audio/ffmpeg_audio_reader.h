@@ -158,6 +158,9 @@ inline bool FFmpegAudioReader::Open(const std::string &file_name) {
 
 	m_packet0 = m_packet;
 
+
+	av_dict_set_int(&m_input_opts, "timeout", (int64_t)60000, 0);
+
 	SetError(file_name.c_str(), ret);
 	ret = avformat_open_input(&m_format_ctx, file_name.c_str(), nullptr, &m_input_opts);
 	if (ret < 0) {
@@ -282,6 +285,7 @@ inline bool FFmpegAudioReader::Read(const int16_t **data, size_t *size) {
 			if (ret < 0) {
 				if (ret == AVERROR_EOF) {
 					m_finished = true;
+					printf("AVERROR_EOF\n");
 					break;
 				} else {
 					SetError("Error reading from the audio source", ret);
